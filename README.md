@@ -1,31 +1,54 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# ⚠️ This template is old and outdated ⚠️
+# Driving IT 2025 - VGA Text Display
 
-Please use **[ttsky-verilog-template](https://github.com/TinyTapeout/ttsky-verilog-template)** for new projects.
-
-# Tiny Tapeout Verilog Project Template
+A TinyTapeout project that displays "Driving IT 2025" on a VGA screen at 640x480 resolution.
 
 - [Read the documentation for project](docs/info.md)
+
+## Overview
+
+This project implements a simple VGA text display that shows the text "Driving IT 2025" centered on a 640x480 VGA screen. The design uses:
+
+- **VGA Sync Generator**: Generates proper horizontal and vertical sync signals for 640x480 @ 60Hz
+- **Character ROM**: 5x7 pixel font for displaying characters
+- **Text Display Logic**: Renders the text string at the center of the screen
+
+## Specifications
+
+- **Resolution**: 640x480 @ 60Hz
+- **Clock Frequency**: 25.175 MHz (VGA pixel clock)
+- **Color Depth**: 1-bit RGB (8 colors, white text on black background)
+- **Character Size**: 5x7 pixels per character
+- **Text**: "Driving IT 2025" (16 characters)
+
+## Pin Configuration
+
+The project uses the standard TinyTapeout VGA Pmod pinout:
+
+| Pin | Signal | Description |
+|-----|--------|-------------|
+| uo[0] | VGA_R1 | Red MSB |
+| uo[1] | VGA_G1 | Green MSB |
+| uo[2] | VGA_B1 | Blue MSB |
+| uo[3] | VGA_VSYNC | Vertical Sync |
+| uo[4] | VGA_R0 | Red LSB |
+| uo[5] | VGA_G0 | Green LSB |
+| uo[6] | VGA_B0 | Blue LSB |
+| uo[7] | VGA_HSYNC | Horizontal Sync |
+
+## How to Test
+
+1. Connect a VGA Pmod to the output pins
+2. Connect to a VGA monitor
+3. Apply a 25.175 MHz clock signal
+4. You should see "Driving IT 2025" displayed in white text on a black background
 
 ## What is Tiny Tapeout?
 
 Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
 
 To learn more and get started, visit https://tinytapeout.com.
-
-## Set up your Verilog project
-
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
-
-The GitHub action will automatically build the ASIC files using [OpenLane](https://www.zerotoasiccourse.com/terminology/openlane/).
-
-## Enable GitHub actions to build the results page
-
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
 
 ## Resources
 
