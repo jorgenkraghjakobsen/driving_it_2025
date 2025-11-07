@@ -20,50 +20,77 @@ This directory contains the FPGA implementation of the "Driving IT 2025" VGA dis
 
 ## Software Requirements
 
-### Gowin EDA
+### Open Source FPGA Toolchain
 
-Download and install Gowin EDA (Educational/Free version):
-- Website: https://www.gowinsemi.com/en/support/download_eda/
-- Install to `/opt/gowin` or set `GOWINHOME` environment variable
+This project uses a completely open source toolchain:
 
-### openFPGALoader
+**Required Tools:**
+- **Yosys** - HDL synthesis
+- **nextpnr-himbaechel** - Place and route for Gowin FPGAs
+- **Project Apicula** - Gowin FPGA bitstream tools (gowin_pack)
+- **openFPGALoader** - FPGA programming tool
 
-For programming the board via command line:
+### Installation
 
+**Option 1: OSS CAD Suite (Recommended)**
 ```bash
-# Ubuntu/Debian
-sudo apt install openfpgaloader
+# Download OSS CAD Suite (includes all tools)
+wget https://github.com/YosysHQ/oss-cad-suite-build/releases/latest/download/oss-cad-suite-linux-x64-<version>.tgz
+tar -xzf oss-cad-suite-linux-x64-*.tgz
+source oss-cad-suite/environment
 
-# From source
-git clone https://github.com/trabucayre/openFPGALoader.git
-cd openFPGALoader
-mkdir build && cd build
-cmake ..
-make
+# Or add to your shell profile
+echo 'source /path/to/oss-cad-suite/environment' >> ~/.bashrc
+```
+
+**Option 2: Individual Tools (Ubuntu/Debian)**
+```bash
+# Install Yosys
+sudo apt install yosys
+
+# Install nextpnr with Gowin support (requires building from source)
+git clone https://github.com/YosysHQ/nextpnr.git
+cd nextpnr
+cmake -DARCH=himbaechel -DHIMBAECHEL_GOWIN_DEVICES=all .
+make -j$(nproc)
 sudo make install
+
+# Install Project Apicula (for gowin_pack)
+pip3 install apycula
+
+# Install openFPGALoader
+sudo apt install openfpgaloader
 ```
 
 ## Building the Project
 
-### Using Gowin IDE (GUI)
-
-1. Open Gowin FPGA Designer
-2. Open project: `driving_it_2025.gprj`
-3. Click "Run" or "Process" → "Run All"
-4. The bitstream will be generated as `driving_it_2025.fs`
-
-### Using Command Line (Makefile)
+### Using Open Source Tools (Command Line)
 
 ```bash
-# Build the bitstream
-make
+# Show build configuration and check tools
+make info
 
-# Program the FPGA
-make program
+# Build the bitstream
+make build
+
+# Load to FPGA SRAM (temporary, lost on power cycle)
+make load
+
+# Flash to FPGA EPROM (persistent)
+make flash
 
 # Clean build artifacts
 make clean
 ```
+
+### Build Targets
+
+- `make build` - Complete synthesis, place & route, and bitstream generation
+- `make load` - Program FPGA SRAM (temporary)
+- `make flash` - Program FPGA Flash memory (persistent)
+- `make find-device` - Detect connected FPGA board
+- `make info` - Show configuration and verify tools
+- `make help` - Display help message
 
 ## Project Structure
 
@@ -75,9 +102,8 @@ tang_nano_9k/
 │   ├── tmds_encoder.v           # TMDS encoding
 │   └── gowin_rpll.v             # PLL clock generator
 ├── constraints/
-│   └── tang_nano_9k.cst         # Pin constraints
-├── driving_it_2025.gprj         # Gowin project file
-├── Makefile                     # Build automation
+│   └── tangnano9k.cst           # Pin constraints (OSS format)
+├── makefile                     # Open source build system
 └── README.md                    # This file
 ```
 
@@ -110,22 +136,22 @@ The 6 LEDs on the Tang Nano 9K show system status:
 
 ## Programming the FPGA
 
-### Using openFPGALoader
+### Using openFPGALoader (Command Line)
 
 ```bash
+# Detect connected FPGA board
+make find-device
+
 # Program SRAM (temporary, lost on power cycle)
-openFPGALoader -b tangnano9k driving_it_2025.fs
+make load
 
-# Program Flash (permanent)
-openFPGALoader -b tangnano9k -f driving_it_2025.fs
+# Program Flash (persistent, survives power cycle)
+make flash
+
+# Or use openFPGALoader directly:
+openFPGALoader -b tangnano9k obj/driving_it_2025.fs          # SRAM
+openFPGALoader -b tangnano9k -f obj/driving_it_2025.fs       # Flash
 ```
-
-### Using Gowin Programmer
-
-1. Open Gowin Programmer
-2. Select device: GW1NR-9C
-3. Add file: `driving_it_2025.fs`
-4. Click "Program/Configure"
 
 ## Expected Output
 
@@ -149,9 +175,15 @@ When programmed successfully:
 - Try power cycling the board
 
 **Build errors:**
-- Ensure Gowin EDA is properly installed
-- Check that all source files exist in correct locations
-- Verify GOWINHOME environment variable
+- Run `make info` to verify all tools are installed
+- Check OSS CAD Suite is properly sourced
+- Ensure nextpnr-himbaechel has Gowin support enabled
+- Verify all source files exist: `ls src/*.v ../../src/*.v`
+
+**Tool not found errors:**
+- Install OSS CAD Suite or individual tools (see Software Requirements)
+- Add tools to PATH or source OSS CAD Suite environment
+- For nextpnr-himbaechel: ensure built with `-DHIMBAECHEL_GOWIN_DEVICES=all`
 
 ## Clock Frequencies
 
@@ -177,5 +209,8 @@ Approximate resource usage on GW1NR-9C:
 ## References
 
 - [Tang Nano 9K Documentation](https://wiki.sipeed.com/hardware/en/tang/Tang-Nano-9K/Nano-9K.html)
-- [Gowin FPGA Resources](https://www.gowinsemi.com/)
+- [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build)
+- [Project Apicula (Gowin FPGA Tools)](https://github.com/YosysHQ/apicula)
+- [nextpnr Documentation](https://github.com/YosysHQ/nextpnr)
+- [openFPGALoader](https://github.com/trabucayre/openFPGALoader)
 - [HDMI/DVI Specification](https://www.hdmi.org/)
