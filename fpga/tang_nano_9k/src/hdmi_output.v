@@ -60,49 +60,36 @@ module hdmi_output (
         .encoded(tmds_blue)
     );
 
-    // Serialization counter (0-4)
-    reg [2:0] serialize_cnt = 0;
-    always @(posedge clk_5x_pixel) begin
+    // SIMPLIFIED: No 5x serialization for testing
+    // Just output TMDS encoded bits directly (won't be proper HDMI, but might show something)
+    // This is a temporary workaround until we have proper PLL working
+
+    // Output lowest bit of TMDS data (cycling through the 10 bits each clock)
+    reg [3:0] bit_counter = 0;
+
+    always @(posedge clk_pixel) begin
         if (reset)
-            serialize_cnt <= 0;
-        else begin
-            if (serialize_cnt == 4)
-                serialize_cnt <= 0;
-            else
-                serialize_cnt <= serialize_cnt + 1;
-        end
+            bit_counter <= 0;
+        else
+            bit_counter <= (bit_counter == 9) ? 0 : bit_counter + 1;
     end
 
-    // Serialization registers
-    reg [9:0] tmds_shift_red = 0;
-    reg [9:0] tmds_shift_green = 0;
-    reg [9:0] tmds_shift_blue = 0;
+    // Output one bit at a time from the TMDS stream
+    wire tmds_bit_red = tmds_red[bit_counter];
+    wire tmds_bit_green = tmds_green[bit_counter];
+    wire tmds_bit_blue = tmds_blue[bit_counter];
 
-    always @(posedge clk_5x_pixel) begin
-        if (serialize_cnt == 0) begin
-            tmds_shift_red <= tmds_red;
-            tmds_shift_green <= tmds_green;
-            tmds_shift_blue <= tmds_blue;
-        end else begin
-            tmds_shift_red <= {1'b0, tmds_shift_red[9:1]};
-            tmds_shift_green <= {1'b0, tmds_shift_green[9:1]};
-            tmds_shift_blue <= {1'b0, tmds_shift_blue[9:1]};
-        end
-    end
+    // Differential output - simplified
+    assign tmds_data_p[2] = tmds_bit_red;
+    assign tmds_data_p[1] = tmds_bit_green;
+    assign tmds_data_p[0] = tmds_bit_blue;
 
-    // Output serialized data
-    wire tmds_clk_serial = (serialize_cnt < 5) ? serialize_cnt[0] : 1'b0;
+    assign tmds_data_n[2] = ~tmds_bit_red;
+    assign tmds_data_n[1] = ~tmds_bit_green;
+    assign tmds_data_n[0] = ~tmds_bit_blue;
 
-    // Differential output (for Tang Nano 9K, these will be mapped to HDMI pins)
-    assign tmds_data_p[2] = tmds_shift_red[0];
-    assign tmds_data_p[1] = tmds_shift_green[0];
-    assign tmds_data_p[0] = tmds_shift_blue[0];
-
-    assign tmds_data_n[2] = ~tmds_shift_red[0];
-    assign tmds_data_n[1] = ~tmds_shift_green[0];
-    assign tmds_data_n[0] = ~tmds_shift_blue[0];
-
-    assign tmds_clk_p = tmds_clk_serial;
-    assign tmds_clk_n = ~tmds_clk_serial;
+    // Clock output (just pixel clock)
+    assign tmds_clk_p = clk_pixel;
+    assign tmds_clk_n = ~clk_pixel;
 
 endmodule

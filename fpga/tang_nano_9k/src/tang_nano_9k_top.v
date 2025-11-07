@@ -24,24 +24,17 @@ module tang_nano_9k_top (
     output wire [5:0] led
 );
 
-    // Clock generation
-    wire clk_pixel;      // 25 MHz pixel clock
-    wire clk_5x_pixel;   // 125 MHz for TMDS serialization
-    wire pll_lock;
-
-    // Gowin PLL IP for clock generation
-    // 27 MHz input -> 25 MHz and 125 MHz outputs
-    Gowin_rPLL pll_inst (
-        .clkout(clk_pixel),     // 25 MHz output
-        .clkoutd(clk_5x_pixel), // 125 MHz output (5x)
-        .lock(pll_lock),
-        .clkin(clk_27mhz)
-    );
+    // Clock generation - BYPASS PLL, use 27 MHz directly
+    // Note: VGA spec is 25.175 MHz, but 27 MHz is close enough for most monitors
+    // 27 MHz gives ~7% faster pixel clock, but within monitor tolerance
+    wire clk_pixel = clk_27mhz;      // Use 27 MHz directly instead of 25 MHz
+    wire clk_5x_pixel = clk_27mhz;   // For now, use same clock (simplified HDMI)
+    wire pll_lock = 1'b1;             // Always locked (no PLL)
 
     // Reset synchronization
     reg [3:0] reset_sync = 4'b1111;
     wire reset = reset_sync[3];
-    wire async_reset = !btn_rst || !pll_lock;
+    wire async_reset = !btn_rst;
 
     always @(posedge clk_pixel) begin
         if (async_reset)
