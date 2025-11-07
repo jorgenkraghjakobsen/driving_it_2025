@@ -38,11 +38,13 @@ module tt_um_driving_it_2025 (
 
     // Text display parameters
     // "Driving IT 2025" = 16 characters
-    // Character size: 6 pixels wide (5 + 1 spacing), 8 pixels tall (7 + 1 spacing)
-    parameter TEXT_START_X = 220;  // Center horizontally: (640 - 16*6)/2 ≈ 272
-    parameter TEXT_START_Y = 236;  // Center vertically: (480 - 8)/2 = 236
-    parameter CHAR_WIDTH = 6;
-    parameter CHAR_HEIGHT = 8;
+    // Character size: 30 pixels wide (25 + 5 spacing), 40 pixels tall (35 + 5 spacing)
+    // Each character scaled 5x from original 5x7 font
+    parameter TEXT_START_X = 80;   // Center horizontally: (640 - 16*30)/2 = 80
+    parameter TEXT_START_Y = 220;  // Center vertically: (480 - 40)/2 = 220
+    parameter CHAR_WIDTH = 30;
+    parameter CHAR_HEIGHT = 40;
+    parameter SCALE = 5;           // 5x scaling factor
     parameter TEXT_LENGTH = 16;
 
     // Text string: "Driving IT 2025"
@@ -75,8 +77,12 @@ module tt_um_driving_it_2025 (
     wire [9:0] text_x = hpos - TEXT_START_X;
     wire [9:0] text_y = vpos - TEXT_START_Y;
     wire [4:0] char_index = text_x / CHAR_WIDTH;
-    wire [2:0] char_col = text_x % CHAR_WIDTH;
-    wire [2:0] char_row = text_y % CHAR_HEIGHT;
+    wire [5:0] char_col = text_x % CHAR_WIDTH;  // Wider to hold 0-29
+    wire [5:0] char_row = text_y % CHAR_HEIGHT; // Wider to hold 0-39
+
+    // Scale down to get font ROM position (divide by SCALE)
+    wire [2:0] font_col = char_col / SCALE;  // 0-29 -> 0-5
+    wire [2:0] font_row = char_row / SCALE;  // 0-39 -> 0-7
 
     // Get current character
     wire [7:0] current_char = (char_index < TEXT_LENGTH) ? text_string[char_index] : 8'h20;
@@ -85,13 +91,13 @@ module tt_um_driving_it_2025 (
     wire char_pixel;
     char_rom font (
         .char_code(current_char),
-        .row(char_row),
-        .col(char_col),
+        .row(font_row),
+        .col(font_col),
         .pixel(char_pixel)
     );
 
-    // Generate RGB output
-    wire text_pixel = in_text_region && char_pixel && (char_col < 5) && (char_row < 7);
+    // Generate RGB output (check we're in the actual character area, not spacing)
+    wire text_pixel = in_text_region && char_pixel && (char_col < 25) && (char_row < 35);
 
     // White text on black background
     wire r = text_pixel;
