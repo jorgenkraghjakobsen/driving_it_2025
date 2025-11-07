@@ -41,9 +41,10 @@ module tang_nano_9k_top (
     // Reset synchronization
     reg [3:0] reset_sync = 4'b1111;
     wire reset = reset_sync[3];
+    wire async_reset = !btn_rst || !pll_lock;
 
-    always @(posedge clk_pixel or negedge btn_rst or negedge pll_lock) begin
-        if (!btn_rst || !pll_lock)
+    always @(posedge clk_pixel) begin
+        if (async_reset)
             reset_sync <= 4'b1111;
         else
             reset_sync <= {reset_sync[2:0], 1'b0};
@@ -60,19 +61,6 @@ module tang_nano_9k_top (
     assign vsync = vga_out[3];
     wire [2:0] rgb = {vga_out[0], vga_out[1], vga_out[2]};  // R, G, B
 
-    // Display enable (active during visible area)
-    // We'll derive this from the sync signals
-    wire de;
-
-    // Instantiate the VGA display enable detector
-    vga_display_enable de_gen (
-        .clk(clk_pixel),
-        .reset(reset),
-        .hsync(hsync),
-        .vsync(vsync),
-        .de(de)
-    );
-
     // Instantiate TinyTapeout VGA design
     tt_um_driving_it_2025 vga_display (
         .ui_in(8'h00),
@@ -84,6 +72,42 @@ module tang_nano_9k_top (
         .clk(clk_pixel),
         .rst_n(~reset)
     );
+
+    // Simple display enable: track position with counters
+    // VGA 640x480: 800 total horizontal, 525 total vertical
+    reg [9:0] h_counter = 0;
+    reg [9:0] v_counter = 0;
+    reg hsync_prev = 0;
+    reg vsync_prev = 0;
+
+    always @(posedge clk_pixel) begin
+        if (reset) begin
+            h_counter <= 0;
+            v_counter <= 0;
+            hsync_prev <= 0;
+            vsync_prev <= 0;
+        end else begin
+            hsync_prev <= hsync;
+            vsync_prev <= vsync;
+
+            // Increment horizontal counter
+            h_counter <= h_counter + 1;
+
+            // Reset on HSYNC rising edge
+            if (hsync && !hsync_prev) begin
+                h_counter <= 0;
+                v_counter <= v_counter + 1;
+            end
+
+            // Reset on VSYNC rising edge
+            if (vsync && !vsync_prev) begin
+                v_counter <= 0;
+            end
+        end
+    end
+
+    // Display enable: active during visible area (0-639, 0-479)
+    wire de = (h_counter < 640) && (v_counter < 480);
 
     // Instantiate HDMI output
     hdmi_output hdmi_out (
@@ -107,53 +131,5 @@ module tang_nano_9k_top (
     assign led[3] = vsync;
     assign led[4] = de;
     assign led[5] = |rgb;  // Any color active
-
-endmodule
-
-
-// Simple display enable generator based on sync signals
-module vga_display_enable (
-    input wire clk,
-    input wire reset,
-    input wire hsync,
-    input wire vsync,
-    output reg de
-);
-
-    // Detect edges of sync signals to determine blanking periods
-    reg hsync_r, vsync_r;
-    reg [10:0] h_count = 0;
-    reg [9:0] v_count = 0;
-
-    always @(posedge clk) begin
-        if (reset) begin
-            h_count <= 0;
-            v_count <= 0;
-            hsync_r <= 0;
-            vsync_r <= 0;
-            de <= 0;
-        end else begin
-            hsync_r <= hsync;
-            vsync_r <= vsync;
-
-            // Horizontal counter
-            if (hsync && !hsync_r) begin  // HSYNC rising edge
-                h_count <= 0;
-            end else if (h_count < 1023) begin
-                h_count <= h_count + 1;
-            end
-
-            // Vertical counter
-            if (vsync && !vsync_r) begin  // VSYNC rising edge
-                v_count <= 0;
-            end else if (hsync && !hsync_r && v_count < 1023) begin
-                v_count <= v_count + 1;
-            end
-
-            // Display enable - active in visible region
-            // Roughly: H: 0-640, V: 0-480
-            de <= (h_count < 640) && (v_count < 480);
-        end
-    end
 
 endmodule
